@@ -1,0 +1,54 @@
+Connect-AzAccount
+New-AzResourceGroup -Name myRG -Location eastus
+$cred = Get-Credential -Message "Enter a username and password for the virtual machine."
+
+$vmParams = @{
+  ResourceGroupName = 'myRG'
+  Name = 'myVM1'
+  Location = 'eastus'
+  ImageName = 'Win2016Datacenter'
+  VirtualNetworkName = 'myVN1'
+  PublicIpAddressName = 'tutorialPublicIp'
+  SubnetName = 'VN1subnet'
+  Credential = $cred
+  OpenPorts = 3389
+  Size = 'Standard_D2s_v3'
+}
+$newVM1 = New-AzVM @vmParams
+
+$newVM1
+
+$newVM1.OSProfile | Select-Object -Property ComputerName, AdminUserName
+
+$newVM1 | Get-AzNetworkInterface |
+  Select-Object -ExpandProperty IpConfigurations |
+    Select-Object -Property Name, PrivateIpAddress
+
+$publicIp = Get-AzPublicIpAddress -Name tutorialPublicIp -ResourceGroupName TutorialResources
+
+$publicIp |
+  Select-Object -Property Name, IpAddress, @{label='FQDN';expression={$_.DnsSettings.Fqdn}}
+
+mstsc.exe /v $publicIp.IpAddress
+
+$vm2Params = @{
+  ResourceGroupName = 'myRG'
+  Name = 'TutorialVM2'
+  ImageName = 'Win2016Datacenter'
+  VirtualNetworkName = 'myVN2'
+  SubnetName = 'VN2subnet'
+  PublicIpAddressName = 'tutorialPublicIp2'
+  Credential = $cred
+  OpenPorts = 3389
+}
+$newVM2 = New-AzVM @vm2Params
+
+$newVM2
+
+mstsc.exe /v $newVM2.FullyQualifiedDomainName
+
+$job = Remove-AzResourceGroup -Name TutorialResources -Force -AsJob
+
+$job
+
+Wait-Job -Id $job.Id
